@@ -1,0 +1,127 @@
+#
+# FMA
+#
+
+### Ubuntu Hadoop Spark R RStudio ###
+
+## 01 / install machine virtuelle & ubuntu
+
+https://openclassrooms.com/courses/reprenez-le-controle-a-l-aide-de-linux/installez-linux-dans-une-machine-virtuelle
+
+## 02 / install hadoop
+
+# http://www.bogotobogo.com/Hadoop/BigData_hadoop_Install_on_ubuntu_single_node_cluster.php
+# Attention aux versions (dans les url des dossiers et fichiers notamment) : java-8-openjdk-amd64 et non java 7, hadoop 2.7.2 et non hadoop 2.6.0
+
+# puis pour démarrer hadoop
+sudo su hduser
+cd /usr/local/hadoop/sbin
+sudo ./start-all.sh
+
+# la console de management devrait normalement être accessible au port 50070 (l'adresse ip suivie de :50070, par exemple en local 127.0.0.1:50070)(nb : si c'est en local, il faut passer par un navigateur qui est dans la machine virtuelle)
+
+## 03 / install spark (& cassandra ?)
+
+http://www.philchen.com/2015/02/16/how-to-install-apache-spark-and-cassandra-stack-on-ubuntu
+Même chose, attention aux versions : spark 1.6.2
+
+# puis pour démarrer spark
+sudo su spark
+cd /usr/local/spark/sbin
+./start-master.sh
+./start-slaves.sh
+# peut etre avec des sudo devant
+# la console de management est accessible au port 8080, et celles de chaque application (session) lancée aux ports 4040, 4041, etc
+# voir ici aussi http://r-addict.com/2016/04/06/FAQ-SparkR.html
+
+#pour démarrer cassandra
+sudo /usr/local/cassandra/bin/cassandra
+
+## 04 / install R
+cd ~
+mkdir Rdl-folder
+cd Rdl-folder
+wget https://mran.revolutionanalytics.com/install/mro/3.2.5/MRO-3.2.5-Ubuntu-15.4.x86_64.deb
+sudo apt install libgfortran3
+sudo dpkg -i MRO-3.2.5-Ubuntu-15.4.x86_64.deb
+R #pour tester que R se lance
+quit() #pour quitter R
+wget https://mran.revolutionanalytics.com/install/mro/3.2.5/RevoMath-3.2.5.tar.gz          
+tar -xzf RevoMath-3.2.5.tar.gz #ça dezip le truc                                           
+cd RevoMath                                                                     
+./RevoMath.sh
+cd ~
+rm -rf Rdl-folder
+
+## 05 / install Rstudio-server
+sudo apt-get install gdebi-core
+wget https://download2.rstudio.org/rstudio-server-0.99.902-amd64.deb
+sudo gdebi rstudio-server-0.99.902-amd64.deb
+
+# Rstudio est accessible au port 8787
+
+## 06 / Rhadoop et co ?
+
+## 07 / 
+
+
+
+
+
+
+
+
+
+### Alternativement, MapR + R + RStudio + RHadoop ###
+
+## 01 / install MapR
+http://doc.mapr.com/display/MapR/MapR+Sandbox+for+Hadoop
+( https://www.mapr.com/products/mapr-sandbox-hadoop/tutorials/spark-tutorial )
+
+# une fois installé alt F2 pour la console
+login : root
+mdp : mapr (attention, clavier en qwerty : ,qpr)
+
+## 02 / install R (/ MRAN / MKL)
+# from http://www.jason-french.com/blog/2013/03/11/installing-r-in-linux/ (partie redhat CentOS6)
+su -c 'rpm -Uvh http://download.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm'
+sudo yum update
+sudo yum install wget
+uname -a # pour savoir si 32 ou 64 bits (les liens suivants dépendent) de la distrib (CentOS 6.8 pour la sandbox MapR) et du nombre de bits
+sudo yum install https://mran.revolutionanalytics.com/install/mro/3.2.5/MRO-3.2.5.el6.x86_64.rpm  #ALERTE : J'INSTALLE LA VERSION POUR CENTOS 6.5 alors qu'on est en version 6.8, pas sur que ça fonctionne
+
+# install de MKL
+cd /home
+mkdir installationMKL#dossier poubelle pour l'install de mkl, sera supprimé
+cd installationMKL
+wget https://mran.revolutionanalytics.com/install/mro/3.2.5/RevoMath-3.2.5.tar.gz          
+tar -xzf RevoMath-3.2.5.tar.gz #ça dezip le truc                                           
+cd RevoMath                                                                     
+./RevoMath.sh
+1 #pour install
+y #pour accepter le end user agreement
+cd /home
+rm -rf installationMKL
+
+## 03 / install RStudio server
+# sudo yum install https://download1.rstudio.org/rstudio-0.99.902-x86_64.rpm 
+mkdir installationRss
+cd installationRss
+wget https://download2.rstudio.org/rstudio-server-rhel-0.99.902-x86_64.rpm
+sudo yum install --nogpgcheck rstudio-server-rhel-0.99.902-x86_64.rpm
+sudo rstudio-server verify-installation
+cd /home
+rm -rf installationRss
+
+
+# puis https://www.mapr.com/sites/default/files/rhadoop_and_mapr_v1.0.pdf
+
+## 04 / RHadoop ?
+
+
+
+
+
+####Infos, doc, etc
+
+Spark programming model : http://www.bogotobogo.com/Hadoop/BigData_hadoop_Apache_Spark_Programming_Model_RDD.php
