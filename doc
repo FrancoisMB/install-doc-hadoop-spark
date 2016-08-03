@@ -1,58 +1,339 @@
 #
-# FMA
+# Auteur : François Malaussena
+#
+### Ubuntu Hadoop Spark R RStudio SparkR Hive ###
 #
 
-### Ubuntu Hadoop Spark R RStudio ###
-
+###########################################
 ## 01 / install machine virtuelle & ubuntu
 
 https://openclassrooms.com/courses/reprenez-le-controle-a-l-aide-de-linux/installez-linux-dans-une-machine-virtuelle
 
+###########################################
+
+#
+# Une fois dans Ubuntu, CTRL ALT T pour ouvrir le terminal. Bienvenue, dans linux en CLI (command line interface)
+# Pas de panique, c'est beaucoup plus simple que les trucs flippants dans les films, petit tuto express : 
+# En général, chaque commande suit la syntaxe "commande -options paramètre1 paramètre2" etc...
+# 
+# Les principales commandes à connaître :
+# cd pour se déplacer dans l'arborescence. En particulier, cd / permet d'aller à la racine, cd ~ d'aller à /home/{utilisateur-actuellement-loggué}, cd .. de remonter d'un dossier, cd - d'aller au précédent dossier dans lequel tu étais
+# ls permet de lister les dossiers et fichiers. Exemple d'option : ls -R / permet de lister tous les fichiers du système (-R signifie "récursif"). A ne pas faire, c'est très long. Si vous le faites, faites CTRL+C pour arrêter l'exécution.
+# man XYX pour obtenir le manuel d'utilisation de la commande XYZ (q pour quitter). C'est sans doute la commande la plus importante, puisqu'elle permet de trouver comment utiliser les autres !
+# cp permet de copier un dossier/fichier
+# mv permet de bouger un dossier/fichier. On l'utilise aussi pour renommer.
+# rm permet de supprimer un dossier/fichier
+# mkdir permet de créer un dossier
+# wget permet de télécharger un contenu depuis le web
+# cat permet de lire le contenu texte d'un fichier
+# history permet de voir les commandes executées précédemment
+# grep permet de rechercher du texte. En particulier, pour rechercher un fichier nommé abc.wyz dans un dossier, faites "ls -R ton-dossier | grep abc.xyz". Le signe | est un pipe, ça permet d'enchaîner les commandes, je vous laisse googler pour plus d'infos.
+# sudo su XYZ permet de changer d'utilisateur pour devenir l'utilisateur XYZ
+# ps permet d'avoir une photo des process en cours, notamment, "ps aux" permet de tous les afficher.
+# addgroup, useradd, adduser permettent d'administrer les utilisateurs et leurs groupes, allez voir sur google comment ça marche
+# passwd permet de changer le mot de passe d'un utilisateur (si vous en avez le droit)
+# chown et chmod permettent d'administrer les permissions des utilisateurs sur les dossiers/fichiers. Là aussi, allez voir sur google.
+#
+# Toutes ces commandes ont de nombreuses options, utilisez man pour les apprendre (man mv, par exemple)
+#
+# Pour effectuer toutes ces commandes, il faut en avoir le droit. Les droits des utilisateurs peuvent être limités à certains dossiers, et limités dans leur étendue (aucun droit, ou lire, et/ou écrire, et/ou executer)
+# L'utilisateur root a tous les droits sur tous les dossiers (et peut donc modifier les droits des autres utilisateurs). Il est déconseillé d'utiliser le compte root autre que dans les cas où vous êtes obligé d'utiliser root.
+# Il est possible de faire en sorte qu'un autre utilisateur ait tout le temps les mêmes droits que root, mais c'est déconseillé aussi (surtout dans la mesure où vous lisez ce tuto, et j'en déduis donc que vous ne savez pas bien ce que vous faites).
+# Il vaut mieux donner des droits de "sudoer" aux utilisateurs à qui on veut donner plus de pouvoir. Un sudoer peut faire "sudo" devant ses commandes. sudo XYZ permet de forcer la commande XYZ, autrement dit, obtenir les permissions de root le temps d'une commande.
+# Pour donner des droits de sudoer, il faut modifier le fichier /etc/sudoer avec la commande visudo. Je vous laisse aller sur google pour voir les détails le jour où vous ferez ça.
+#
+# En outre, il existe de (nombreux) programmes (hadoop et R en sont, par exemple). Ceux à connaître sont :
+# apt-get est programme pour manager les packages, yum aussi
+# tar est un programme pour zipper/dézipper
+# vi, vim et emacs, qui sont des éditeurs de texte. J'explique un peu vim plus bas, mais googlez pour comprendre mieux, c'est pas simple au premier abord.
+#
+# Enfin, deux trois dernières choses :
+# La plupart des infos sur les groupes et utilisateurs sont dans /etc 
+# Les dossiers de chaque utilisateur sont dans /home. 
+# Notamment, les fichiers de configuration du terminal sont dans /home/{ton-utilisateur}/.bashrc, je vous invite à le personnaliser selon votre utilisation de linux. 
+# Vous trouverez mon .bashrc sur https://github.com/FrancoisMB/my-bashrc/blob/master/.bashrc, il y a des options sympas, par exemple "cd ton-dossier" execute "cd ton-dossier" puis "ls ton-dossier" ; "oops" execute "sudo + la précédente commande" ; il y a un smiley vert/rouge dans le prompt si la commande précédente a marché/échoué, etcaetera.
+#
+
+## 02 / machins préalables
+# Normalement (si vous n'avez pas pris mon .bashrc), le prompt devrait avoir comme format fma@fma-VirtualBox:~$
+# Où fma est le nom de votre compte lors de l'installation d'ubuntu, et fma-VirtualBox le nom de l'ordinateur
+# On va d'abord s'assurer de connaître le mot de passe de root.
+
+sudo passwd root
+# Entrer 2x le password que vous voulez en root
+su 
+# Là, le prompt devrait avoir changé et ne plus être en couleur, parce qu'on est connecté avec le compte root (le prompt a changé
+# de couleur parce que root n'a pas de .bashrc dans /root. Il est possible de lui mettre un /bashrc pour avoir un prompt agréable, mais c'est pas l'objet ici)
+
+exit
+# Le prompt revient à fma@fma-VirtualBox:~$
+
 ## 02 / install hadoop
 
-# http://www.bogotobogo.com/Hadoop/BigData_hadoop_Install_on_ubuntu_single_node_cluster.php
-# Attention aux versions (dans les url des dossiers et fichiers notamment) : java-8-openjdk-amd64 et non java 7, hadoop 2.7.2 et non hadoop 2.6.0
+# Source : http://www.bogotobogo.com/Hadoop/BigData_hadoop_Install_on_ubuntu_single_node_cluster.php
+# Attention aux versions (dans les url des dossiers et fichiers notamment) : hadoop 2.7.2 et non hadoop 2.6.0, java 8 et pas 7
+# J'ai remplacé le group hadoop par hadoop-group, et l'utilisateur hduser par hadoop-user
+
+sudo apt-get update
+sudo apt-get install openjdk-8-jdk openjdk-8-jre
+sudo apt-get install default-jdk
+cd ~
+mkdir telechargements-installs
+sudo addgroup hadoop-group
+sudo adduser --ingroup hadoop hduser
+### sudo useradd -g hadoop-group fma
+su
+sudo adduser hadoop-user sudo
+### sudo adduser fma sudo # normalement il dira que fma est déjà dans le groupe sudo
+exit
+sudo apt-get install rsync
+sudo apt-get install ssh
+su hadoop-user
+ssh-keygen -t rsa -P ""
+cat $HOME/.ssh/id_rsa.pub >> $HOME/.ssh/authorized_keys
+ssh localhost
+cd /home/fma/telechargements-installs
+wget http://apache.mirrors.ovh.net/ftp.apache.org/dist/hadoop/common/stable/hadoop-2.7.2.tar.gz
+tar xvzf hadoop-2.7.2.tar.gz
+sudo mv hadoop-2.7.2 /usr/local/hadoop
+sudo chown -R hadoop-user:hadoop-group /usr/local/hadoop
+### sudo chown -R fma:hadoop-group /usr/local/hadoop
+update-alternatives --config java
+# permet de voir le répertoire de java
+vim ~/.bashrc
+
+# bienvenue dans VIM, un éditeur de texte. Si besoin d'apprendre à s'en servir, aller voir ici : https://openclassrooms.com/courses/reprenez-le-controle-a-l-aide-de-linux/vim-l-editeur-de-texte-du-programmeur
+# se déplacer à la toute fin du doc (en restant appuyé sur J, et ensuite sur L), se mettre en mode insertion en appuyant sur I
+# aller à la ligne, et insérer les lignes suivantes 
+
+	#HADOOP VARIABLES START
+	export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+	export HADOOP_INSTALL=/usr/local/hadoop
+	export PATH=$PATH:$HADOOP_INSTALL/bin
+	export PATH=$PATH:$HADOOP_INSTALL/sbin
+	export HADOOP_MAPRED_HOME=$HADOOP_INSTALL
+	export HADOOP_COMMON_HOME=$HADOOP_INSTALL
+	export HADOOP_HDFS_HOME=$HADOOP_INSTALL
+	export YARN_HOME=$HADOOP_INSTALL
+	export HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_INSTALL/lib/native
+	export HADOOP_OPTS="-Djava.library.path=$HADOOP_INSTALL/lib"
+	#HADOOP VARIABLES END
+
+# faire échap pour quitter le mode insertion, puis faire :wq (c'est bien :wq, avec les deux points) et entrée, pour quitter en sauvant
+
+source ~/.bashrc
+exit
+exit
+exit
+# faire exit en boucle jusqu'à ce que le terminal se ferme
+# CTRL ALT T pour rouvrir le terminal
+sudo su hadoop-user
+ssh localhost
+vim /usr/local/hadoop/etc/hadoop/hadoop-env.sh
+
+# aller à la ligne avec export JAVA_HOME, et mettre :
+
+	export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+
+sudo mkdir -p /app/hadoop/tmp
+sudo chown hadoop-user:hadoop-group /app/hadoop/tmp
+### sudo chown fma:hadoop-group /app/hadoop/tmp
+vim /usr/local/hadoop/etc/hadoop/core-site.xml
+
+# dans vim, aller entre les balises <configuration></configuration>, appuyer sur i pour le mode insertion, et ajouter :
+
+	 <property>
+	  <name>hadoop.tmp.dir</name>
+	  <value>/app/hadoop/tmp</value>
+	  <description>A base for other temporary directories.</description>
+	 </property>
+
+	 <property>
+	  <name>fs.default.name</name>
+	  <value>hdfs://localhost:54310</value>
+	  <description>The name of the default file system.  A URI whose
+	  scheme and authority determine the FileSystem implementation.  The
+	  uri's scheme determines the config property (fs.SCHEME.impl) naming
+	  the FileSystem implementation class.  The uri's authority is used to
+	  determine the host, port, etc. for a filesystem.</description>
+	 </property>
+
+# échap, :wq pour sauver
+
+cp /usr/local/hadoop/etc/hadoop/mapred-site.xml.template /usr/local/hadoop/etc/hadoop/mapred-site.xml
+vim /usr/local/hadoop/etc/hadoop/mapred-site.xml
+
+# ajouter ça entre les balises de configuration :
+
+	 <property>
+	  <name>mapred.job.tracker</name>
+	  <value>localhost:54311</value>
+	  <description>The host and port that the MapReduce job tracker runs
+	  at.  If "local", then jobs are run in-process as a single map
+	  and reduce task.
+	  </description>
+	 </property>
+
+# échap, :wq
+
+sudo mkdir -p /usr/local/hadoop_store/hdfs/namenode
+sudo mkdir -p /usr/local/hadoop_store/hdfs/datanode
+sudo chown -R hadoop-user:hadoop-group /usr/local/hadoop_store
+### sudo chown -R fma:hadoop-group /usr/local/hadoop_store
+vim /usr/local/hadoop/etc/hadoop/hdfs-site.xml
+
+# entre les blaises <configuration>, mettre :
+
+	 <property>
+	  <name>dfs.replication</name>
+	  <value>1</value>
+	  <description>Default block replication.
+	  The actual number of replications can be specified when the file is created.
+	  The default is used if replication is not specified in create time.
+	  </description>
+	 </property>
+	 <property>
+	   <name>dfs.namenode.name.dir</name>
+	   <value>file:/usr/local/hadoop_store/hdfs/namenode</value>
+	 </property>
+	 <property>
+	   <name>dfs.datanode.data.dir</name>
+	   <value>file:/usr/local/hadoop_store/hdfs/datanode</value>
+	 </property>
+
+# échap, :wq
+
+hdfs namenode -format
 
 # puis pour démarrer hadoop
-sudo su hduser
+sudo su hadoop-user
 cd /usr/local/hadoop/sbin
 sudo ./start-all.sh
 
 # la console de management devrait normalement être accessible au port 50070 (l'adresse ip suivie de :50070, par exemple en local 127.0.0.1:50070)(nb : si c'est en local, il faut passer par un navigateur qui est dans la machine virtuelle)
 
+# pour naviguer dans hdfs :
+hadoop fs -mkdir /premier-dossier-test
+hadoop fs -ls /
+# ça devrait afficher le dossier premier-dossier-test
+hadoop fs -rm -r /premier-dossier-test
+# ça devrait dire "Deleted /premier-dossier-test"
+
+###########################################
 ## 03 / install spark (& cassandra ?)
 
-http://www.philchen.com/2015/02/16/how-to-install-apache-spark-and-cassandra-stack-on-ubuntu
-Même chose, attention aux versions : spark 1.6.2
+# http://www.philchen.com/2015/02/16/how-to-install-apache-spark-and-cassandra-stack-on-ubuntu
+# Même chose, attention aux versions : spark 1.6.2 built for hadoop 2.6
 
-# puis pour démarrer spark
-sudo su spark
+sudo apt-get update
+sudo apt-get install ntp
+sudo apt-get install python-software-properties 
+sudo apt-get install git
+sudo apt-get install ntpdate
+sudo ntpdate pool.ntp.org
+# sudo add-apt-repository ppa:webupd8team/java # pas sur qu'il faille faire ces deux lignes, on a déjà java (openjdk-8)
+# sudo apt-get install oracle-jdk7-installer
+ 
+cd ~/telechargements-installs
+sudo wget http://d3kbcqa49mib13.cloudfront.net/spark-1.6.2-bin-hadoop2.6.tgz
+sudo gunzip -c spark-1.6.2-bin-hadoop2.6.tgz | tar -xvf - # faudra peut être le faire en étant root, sudo n'a pas fonctionné chez moi
+sudo cp -Rp spark-1.6.2-bin-hadoop2.6 /usr/local/spark
+sudo rm -rf spark-1.6.2-bin-hadoop2.6
+cd /usr/local/
+
+sudo addgroup spark-group
+sudo useradd -g spark-group spark-user
+sudo adduser spark-user sudo
+sudo mkdir /home/spark-user
+sudo chown spark-user:spark-group /home/spark-user
+sudo chown -R spark-user:spark-group /usr/local/spark/
+sudo cp /home/fma/.bashrc /home/spark-user/.bashrc # si vous voulez avoir les mêmes configs pour le CLI, conseillé
+sudo su spark-user
+ssh-keygen -t rsa -P ""
+cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+ssh localhost
+exit
+sudo mkdir -p /srv/spark/logs
+sudo mkdir -p /srv/spark/work
+sudo mkdir -p /srv/spark/tmp
+sudo mkdir -p /srv/spark/pids
+sudo chown -R spark-user:spark-group /srv/spark
+sudo chmod 4755 /srv/spark/tmp
+cd /usr/local/spark
+bin/run-example SparkPi 10
+cd /usr/local/spark/conf/
+cp -p spark-env.sh.template spark-env.sh
+vim spark-env.sh  
+
+# comme les fois d'avant, aller où il faut, appuyer sur i pour insérer, et entrer ça :
+# Il va de soit que l'ip dans la ligne SPARK_PUBLIC_DNS="127.0.0.1" doit être changée si spark n'est pas utilisé en local
+
+	export SPARK_WORKER_CORES="2"
+	export SPARK_WORKER_MEMORY="1g"
+	export SPARK_DRIVER_MEMORY="1g"
+	export SPARK_REPL_MEM="2g"
+	export SPARK_WORKER_PORT=9000
+	export SPARK_CONF_DIR="/usr/local/spark/conf"
+	export SPARK_TMP_DIR="/srv/spark/tmp"
+	export SPARK_PID_DIR="/srv/spark/pids"
+	export SPARK_LOG_DIR="/srv/spark/logs"
+	export SPARK_WORKER_DIR="/srv/spark/work"
+	export SPARK_LOCAL_DIRS="/srv/spark/tmp"
+	export SPARK_COMMON_OPTS="$SPARK_COMMON_OPTS -Dspark.kryoserializer.buffer.mb=32 "
+	LOG4J="-Dlog4j.configuration=file://$SPARK_CONF_DIR/log4j.properties"
+	export SPARK_MASTER_OPTS=" $LOG4J -Dspark.log.file=/srv/spark/logs/master.log "
+	export SPARK_WORKER_OPTS=" $LOG4J -Dspark.log.file=/srv/spark/logs/worker.log "
+	export SPARK_EXECUTOR_OPTS=" $LOG4J -Djava.io.tmpdir=/srv/spark/tmp/executor "
+	export SPARK_REPL_OPTS=" -Djava.io.tmpdir=/srv/spark/tmp/repl/\$USER "
+	export SPARK_APP_OPTS=" -Djava.io.tmpdir=/srv/spark/tmp/app/\$USER "
+	export PYSPARK_PYTHON="/usr/bin/python"
+	SPARK_PUBLIC_DNS="127.0.0.1"
+	export SPARK_WORKER_INSTANCES=2
+
+# échap, :wq
+
+cp -p spark-defaults.conf.template spark-defaults.conf
+vim spark-defaults.conf
+
+# ajouter à la fin 
+
+	spark.master            spark://hostnamepub:7077
+	spark.executor.memory   512m
+	spark.eventLog.enabled  true
+	spark.serializer        org.apache.spark.serializer.KryoSerializer
+
+# échap, :wq
+
+# puis, enfin, pour démarrer spark
+
+sudo su spark-user
 cd /usr/local/spark/sbin
 ./start-master.sh
 ./start-slaves.sh
-# peut etre avec des sudo devant
+
 # la console de management est accessible au port 8080, et celles de chaque application (session) lancée aux ports 4040, 4041, etc
 # voir ici aussi http://r-addict.com/2016/04/06/FAQ-SparkR.html
 
-#pour démarrer cassandra
+# le lien du tuto propose également d'installer cassandra. Si c'est installé, pour le démarrer, faire :
 sudo /usr/local/cassandra/bin/cassandra
+# si c'est installé, un conseil, garder la même organisation : 
+# télécharger le tgz dans /home/fma/telechargements-installs, le dézipper ici, bouger le dossier dans /usr/local en le nommant cassandra,
+# un utilisateur cassandra-user dans un groupe cassandra-group, avec un dossier /home/cassandra-user
 
+###########################################
 ## 04 / install R
-cd ~
-mkdir Rdl-folder
-cd Rdl-folder
+cd telechargements-installs
 wget https://mran.revolutionanalytics.com/install/mro/3.2.5/MRO-3.2.5-Ubuntu-15.4.x86_64.deb
 sudo apt install libgfortran3
 sudo dpkg -i MRO-3.2.5-Ubuntu-15.4.x86_64.deb
 R #pour tester que R se lance
-quit() #pour quitter R
-wget https://mran.revolutionanalytics.com/install/mro/3.2.5/RevoMath-3.2.5.tar.gz          
-tar -xzf RevoMath-3.2.5.tar.gz #ça dezip le truc                                           
+	quit() #pour quitter R
+wget https://mran.revolutionanalytics.com/install/mro/3.2.5/RevoMath-3.2.5.tar.gz
+tar -xzf RevoMath-3.2.5.tar.gz #ça dezip le truc
 cd RevoMath                                                                     
-./RevoMath.sh
-cd ~
-rm -rf Rdl-folder
+./RevoMath.sh 
 
+###########################################
 ## 05 / install Rstudio-server
 sudo apt-get install gdebi-core
 wget https://download2.rstudio.org/rstudio-server-0.99.902-amd64.deb
@@ -60,9 +341,354 @@ sudo gdebi rstudio-server-0.99.902-amd64.deb
 
 # Rstudio est accessible au port 8787
 
-## 06 / Rhadoop et co ?
+	# tests de manip entre hdfs et R, à rentrer dans R studio : http://www.r-bloggers.com/read-from-hdfs-with-r-brief-overview-of-sparkr/
+	N <- 1e6
+	k <- 1e4
+	df_test_spark <- data.frame(V_int = sample(N, N, replace = T), 
+                 V_num_1 = sample(N, N, replace = T) + 0.1,
+                 V_num_2 = sample(N, N, replace = T) + 0.2, 
+                 V_char_1 = rep(paste0('factor_1_', 1:k), each = N/k),
+                 V_char_2 = rep(paste0('factor_2_', 1:k), each = N/k)
+	)
+	format(object.size(df_test_spark ), 'Mb')
+	write.table(df_test_spark, 'test_spark.csv', sep = ',', row.names = F, col.names = F)
+	# command to call hadoop
+	hadoop_cmd <- "/usr/local/hadoop/bin/hadoop"
+	system2(hadoop_cmd, "fs -copyFromLocal test_spark.csv /user/input/") #là, on copie "test_spark.csv" (qui est un fichier en local dans linux), dans l'architecture HDFS
+	system2(hadoop_cmd, "fs -rm /user/input/test_spark.csv") # on le supprime
+	system2(hadoop_cmd, "fs -put test_spark.csv /user/input/") # on le remet d'une autre manière
+	system2(hadoop_cmd, "fs -ls /user/input") #on affiche le contenu du répertoire HDFS /user/input
 
-## 07 / 
+	library(data.table)
+	sdf_local <- fread(paste(hadoop_cmd, "fs -text /user/input/test_spark.csv"))
+
+# pour pouvoir installer des packages (et notamment devtools), il faudra sans doute faire tourner ces lignes en CLI
+sudo apt-get install zlib1g-dev
+sudo apt-get install libssl-dev
+sudo apt-get install libcurl4-openssl-dev
+sudo R CMD javareconf
+sudo apt-get install r-cran-rjava
+sudo apt-get install zip
+
+# autres trucs à faire tourner PAS COMPLET
+sudo su spark
+/usr/local/spark/bin/spark-shell --packages com.databricks:spark-csv_2.11:1.4.0  #aller voir la dernière version sur https://spark-packages.org/package/databricks/spark-csv
+
+###########################################
+## 06 / install SparkR
+
+mkdir /tmp/spark-events
+
+# dans Rstudio
+        install.packages("devtools")
+	devtools::install_github('apache/spark@v1.6.2', subdir = 'R/pkg')
+	library(SparkR)
+        sc <- sparkR.init(master='local', 
+                  sparkEnvir=list(spark.app.name ="SparkR FMA"
+                                  ,spark.executor.memory="10g"
+                                  ,spark.driver.memory="24g" 
+                                  ,spark.cores.max="4"
+                                  ,spark.executor.cores="1"
+                                  ,spark.driver.maxResultSize="10g"
+                                  ,spark.akka.frameSize = "1000" ###
+                  ),
+                  appName = "SparkR",sparkPackages="com.databricks:spark-csv_2.10:1.4.0")
+	sqlContext <- sparkRSQL.init(sc)
+
+# une fois hive installé (et peut être RHive, pas sûr), il sera également possible de faire ça dans R (après avoir initialisé SparkR avec sparkR.init)
+	sqlContext <- SparkRHive.init(sc)
+
+###########################################
+## 07 / Rhadoop &co PAS COMPLET
+# aller ici pour trouver les bons liens à mettre : https://github.com/RevolutionAnalytics/RHadoop/wiki/Downloads
+
+sudo su
+sudo R
+# dans R
+	install.packages("https://github.com/RevolutionAnalytics/ravro/blob/1.0.4/build/ravro_1.0.4.tar.gz?raw=true", repos=NULL, type=source)
+	install.packages("https://github.com/RevolutionAnalytics/plyrmr/releases/download/0.6.0/plyrmr_0.6.0.tar.gz", repos=NULL, type=source)
+	install.packages("https://github.com/RevolutionAnalytics/rmr2/releases/download/3.3.1/rmr2_3.3.1.tar.gz", repos=NULL, type=source)
+	install.packages("https://github.com/RevolutionAnalytics/rhdfs/blob/master/build/rhdfs_1.0.8.tar.gz?raw=true", repos=NULL, type=source)
+	install.packages("https://github.com/RevolutionAnalytics/rhbase/blob/master/build/rhbase_1.2.1.tar.gz?raw=true", repos=NULL, type=source)
+
+
+###########################################
+## 08 / Hive
+# Source : http://www.tutorialspoint.com/hive/hive_installation.htm
+
+cd /home/fma/telechargements-installs
+wget http://mirrors.ircam.fr/pub/apache/hive/hive-2.1.0/apache-hive-2.1.0-bin.tar.gz # comme à chaque fois, attention aux versions, checker s'il n'y a pas plus récent
+tar -xzvf apache-hive-2.1.0-bin.tar.gz
+mv apache-hive-2.1.0-bin /usr/local/hive
+sudo vim ~/.bashrc
+
+# ajouter ça si ça n'y est pas déjà :
+
+	# Set HIVE_HOME
+	export HIVE_HOME="/usr/local/hive"
+	export PATH=$PATH:$HIVE_HOME/bin
+	export PATH=$PATH:$HIVE_HOME/sbin
+
+# échap, :wq
+# d'ailleurs, si vous voulez comprendre les lignes là dessus, je vous invite à googler "path in linux"
+
+sudo vim /usr/local/hive/bin/hive-config.sh
+
+# on est de nouveau dans vim. Faire la même chose pour ajouter :
+	export HADOOP_HOME=/usr/local/hadoop    #(write the path where hadoop file is there)
+# puis :wq
+
+sudo su hadoop-user
+
+# SI JAMAIS la commande hadoop ne fonctionne pas, faire :
+		vim ~/.bashrc
+	# et y ajouter :
+		alias hadoop="/home/local/hadoop/bin/hadoop"
+	# puis échap, puis :wq, puis exit plein de fois puis CTRL ALT T pour relancer terminal
+
+hadoop fs -mkdir /usr
+hadoop fs -mkdir /usr/hive
+hadoop fs -mkdir /usr/hive/warehouse
+hadoop fs -chmod g+w /usr/hive/warehouse
+hadoop fs -mkdir /tmp
+hadoop fs -chmod g+w /tmp
+
+hadoop fs -mkdir /user
+hadoop fs -mkdir /user/hive
+hadoop fs -mkdir /user/hive/warehouse
+hadoop fs -chmod g+w /user/hive/warehouse
+
+exit
+
+## install d'apache derby. Si j'ai bien compris, c'est un truc comme mysql.
+
+cd /home/fma/telechargements-installs
+wget http://apache.mirrors.ovh.net/ftp.apache.org/dist//db/derby/db-derby-10.12.1.1/db-derby-10.12.1.1-bin.tar.gz
+tar zxvf db-derby-10.12.1.1-bin.tar.gz
+mv /home/fma/telechargements-installs/db-derby-10.12.1.1-bin /usr/local/derby
+vim ~/.bashrc
+
+# une fois encore, ajouter :
+	export DERBY_HOME=/usr/local/derby
+	export PATH=$PATH:$DERBY_HOME/bin
+	export CLASSPATH=$CLASSPATH:$DERBY_HOME/lib/derby.jar:$DERBY_HOME/lib/derbytools.jar
+# échap, :wq
+# quitter et relancer le terminal
+
+mkdir $DERBY_HOME/data
+sudo chmod -R 777 $DERBY_HOME/data
+cp $HIVE_HOME/conf/hive-default.xml.template $HIVE_HOME/conf/hive-site.xml
+vim $HIVE_HOME/conf/hive-site.xml
+
+# faire /ConnectionURL pour faire une recherche du passage à modifier
+# puis le modifier comme ça :
+	<property>
+	   <name>javax.jdo.option.ConnectionURL</name>
+	   <value>jdbc:derby:/usr/local/derby/data/metastore_db;create=true </value>
+	   <description>JDBC connect string for a JDBC metastore </description>
+	</property>
+# nb : /usr/local/derby doit être égal à la valeur donnée à $DERBY_HOME, c'est à dire le dossier d'install de derby
+
+sudo vim $HIVE_HOME/conf/jpox.properties
+
+# insérer :
+	javax.jdo.PersistenceManagerFactoryClass =
+
+	org.jpox.PersistenceManagerFactoryImpl
+	org.jpox.autoCreateSchema = false
+	org.jpox.validateTables = false
+	org.jpox.validateColumns = false
+	org.jpox.validateConstraints = false
+	org.jpox.storeManagerType = rdbms
+	org.jpox.autoCreateSchema = true
+	org.jpox.autoStartMechanismMode = checked
+	org.jpox.transactionIsolation = read_committed
+	javax.jdo.option.DetachAllOnCommit = true
+	javax.jdo.option.NontransactionalRead = true
+	javax.jdo.option.ConnectionDriverName = org.apache.derby.jdbc.ClientDriver
+	javax.jdo.option.ConnectionURL = jdbc:derby:/usr/local/derby/data/metastore_db;create = true
+	javax.jdo.option.ConnectionUserName = APP
+	javax.jdo.option.ConnectionPassword = mine
+# même chose pour l'avant l'avant dernière ligne, /usr/local/derby doit être le dossier d'install de derby
+# échap, :wq
+
+sudo su fma
+cd $DERBY_HOME/data
+schematool -initSchema -dbType derby
+sudo chmod -R 777 $DERBY_HOME/data
+sudo su hadoop-user
+
+vim $HIVE_HOME/conf/hive-site.xml
+
+# changer ça :
+  <property>
+    <name>hive.exec.scratchdir</name>
+    <value>/tmp/hive</value>
+    <description>HDFS root scratch dir for Hive jobs which gets created with write all (733) permission. For each connecting user, an HDFS scratch dir: ${hive.exec.scratchdir}/&lt;username&gt; is created, with ${hive.scratch.dir.permission}.</description>
+  </property>
+  <property>
+    <name>hive.exec.local.scratchdir</name>
+    <value>${system:java.io.tmpdir}/${system:user.name}</value>
+    <description>Local scratch space for Hive jobs</description>
+  </property>
+  <property>
+    <name>hive.downloaded.resources.dir</name>
+    <value>${system:java.io.tmpdir}/${hive.session.id}_resources</value>
+    <description>Temporary local directory for added resources in the remote file system.</description>
+  </property>
+  <property>
+    <name>hive.scratch.dir.permission</name>
+    <value>700</value>
+    <description>The permission for the user specific scratch directories that get created.</description>
+  </property>
+
+# par ça :
+	<name>hive.exec.scratchdir</name>
+	<value>/tmp/hive-${user.name}</value>
+
+	<name>hive.exec.local.scratchdir</name>
+	<value>/tmp/${user.name}</value>
+
+	<name>hive.downloaded.resources.dir</name>
+	<value>/tmp/${user.name}_resources</value>
+
+	<name>hive.scratch.dir.permission</name>
+	<value>733</value>
+
+hive
+# Avec la commande hive, du texte devrait apparaître, puis le prompt : hive>
+
+
+############# QUAND JE GALERAIS AVEC HIVE, CA N'EST A PRIORI PAS A FAIRE, MAIS SI JAMAIS TU GALERES AUSSI, PEUT ETRE QUE TU TROUVERAS DES CHOSES UTILES LA DESSOUS
+
+# attention, cette fois ci, ça va être plus complexe. Tout d'abord, il faut ajouter ce contenu :
+	<property>
+	    <name>hive.metastore.local</name>
+	    <value>TRUE</value>
+	    <description>controls whether to connect to remove metastore server or open a new metastore server in Hive Client JVM</description>
+	</property>
+
+# Ensuite, il y a du coutenu qu'il ne faut pas ajouter, mais modifier. Le contenu est le suivant :
+# (Il va de soit qu'il faut insérer ça hors des balises <property></property> déjà existantes)
+	<property>
+	    <name>javax.jdo.option.ConnectionURL</name>
+	    <value>jdbc:mysql://usr/lib/hive/metastore_db? createDatabaseIfNotExist=true</value>
+	    <description>JDBC connect string for a JDBC metastore</description>
+	</property>
+	<property>
+	    <name>javax.jdo.option.ConnectionDriverName</name>
+	    <value>com.mysql.jdbc.Driver</value>
+	    <description>Driver class name for a JDBC metastore</description>
+	</property>
+	<property>
+	    <name>hive.metastore.warehouse.dir</name>
+	    <value>/usr/hive/warehouse</value>
+	    <description>location of default database for the warehouse</description>
+	</property>
+
+# Le problème, c'est qu'il faut trouver ces passages pour les remplacer, hors le document est long, il est donc conseillé de faire une recherche (sur le contenu des balises <name></name>).
+# Pour cela, s'assurer d'être en mode commande (en faisant échap), puis écrire (par exemple, pour le premier passage à modifier) /javax.jdo.option.ConnectionURL
+# Le / correspond à la fonction de recherche. Si ça ne trouve pas du premier coup, refaire un / (sans rien derrière) pour aller aux occurrences suivantes. Si aucune n'existe, créez la <property> qui devrait exister
+
+hive
+# Avec la commande hive, du texte devrait apparaître, puis le prompt : hive>
+# Si ça ne fonctionne pas, faire ce qui suit
+
+sudo addgroup hive-group
+sudo useradd -g hive-group hive-user
+sudo adduser hive-user sudo
+sudo passwd hive-user #définir mdp
+sudo mkdir /home/hive
+sudo chown hive-user:hive-group /home/hive
+
+visudo
+# Add to sudoers file:
+	hive-user ALL=(ALL) NOPASSWD:ALL
+
+sudo chown -R hive-user:hive-group /usr/lib/hive/
+
+# et ce qui est là dedans à partir de l'étape 6 : http://www.tutorialspoint.com/hive/hive_installation.htm
+
+# et ces choses là aussi :
+
+sudo chmod 666 $HIVE_HOME/bin/derby.log
+sudo chmod 666 $HIVE_HOME/conf/derby.log
+
+# http://stackoverflow.com/questions/28695444/apache-hive-unable-to-instantiate-org-apache-hadoop-hive-metastore-hivemetasto
+sudo apt install derby-tools
+cd metastore_db
+sudo rm *.lck
+
+# http://stackoverflow.com/questions/31460583/not-able-to-start-hive-shell-unable-to-instantiate-org-apache-hadoop-hive-ql
+cd $HADOOP_HOME/share/hadoop/common/lib
+sudo cp sl4j-log4j12-1.7.10.jar $HADOOP_HOME/bin
+sudo cp sl4j-api-1.7.10.jar $HADOOP_HOME/bin
+
+# http://doctuts.readthedocs.io/en/latest/hive.html
+
+############# FIN GALERES HIVE
+
+
+## 09/ RHive
+# source : https://github.com/nexr/RHive
+
+sudo su fma
+sudo vim /usr/local/hadoop/etc/hadoop/hadoop-env.sh
+
+# ajouter :
+	export R_HOME=/usr/lib/R
+
+sudo apt-get install ant
+cd /home/fma/telechargements-installs
+sudo git clone https://github.com/nexr/RHive.git
+cd RHive
+export HIVE_HOME=$HIVE_HOME
+export HADOOP_HOME=$HADOOP_HOME
+sudo ant build
+
+# si ça marche pas parce que ${env.HADOOP_HOME} does not exist, faire :
+rm -rf build
+sudo vim build.xml
+# aller à la ligne 
+    <fileset dir="${env.HADOOP_HOME}" includes="**/*.jar"/>
+    <fileset dir="${env.HIVE_HOME}/lib/" includes="**/*.jar"/>
+# et modifier en :
+    <fileset dir="/usr/local/hadoop" includes="**/*.jar"/>
+    <fileset dir="/usr/local/hive/lib/" includes="**/*.jar"/>
+# puis :wq
+
+sudo ant build
+sudo R CMD build RHive
+sudo R
+	install.packages("rJava", lib = "/usr/lib64/MRO-3.2.5/R-3.2.5/lib/R/library")
+	library(rJava)
+	install.packages("RJDBC", dep=TRUE)
+	quit()
+sudo R CMD INSTALL RHive_2.0-0.10.tar.gz
+# après, tester library("rJava") dans rstudio (c'est à dire dans un navigateur, à l'adresse localhost:8787)
+# si ça marche pas
+
+sudo rstudio-server stop
+export LD_LIBRARY_PATH=/usr/lib/jvm/jre/lib/amd64:/usr/lib/jvm/jre/lib/amd64/default
+sudo rstudio-server start
+
+sudo su hadoop-user
+hadoop fs -mkdir /rhive
+hadoop fs -mkdir /rhive/lib
+hadoop fs -mkdir /rhive/lib/2.0-0.10
+hadoop fs -chmod -R 777 /rhive
+
+# puis, dans rstudio :
+	library(rJava)
+	library(RHive)
+	rhive.init(hiveHome =   "/usr/local/hive"
+	          ,hiveLib =    "/usr/local/hive/lib"
+	          ,hadoopHome = "/usr/local/hadoop"
+	          ,hadoopConf = "/usr/local/hadoop/etc/hadoop"
+	          ,hadoopLib =  "/usr/local/hadoop/lib"
+	          )
+	rhive.connect('localhost', defaultFS='hdfs://localhost:54310', hiveServer2=FALSE) 
+	# pour savoir quoi mettre dans defaultFS, entrer hdfs getconf -confKey fs.default.name dans la console
 
 
 
@@ -70,6 +696,13 @@ sudo gdebi rstudio-server-0.99.902-amd64.deb
 
 
 
+
+
+
+
+
+
+#################################################################################################################################
 
 
 ### Alternativement, MapR + R + RStudio + RHadoop ###
