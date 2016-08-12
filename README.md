@@ -1,3 +1,3 @@
 # install-doc-hadoop-spark
 
-# This was done for colleagues
+This was done for colleagues
