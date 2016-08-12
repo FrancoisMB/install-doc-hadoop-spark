@@ -1,5 +1,6 @@
 #
 # Auteur : François Malaussena
+# Date : aout 2016
 #
 ### Ubuntu Hadoop Spark R RStudio SparkR Hive ###
 #
@@ -23,6 +24,7 @@ https://openclassrooms.com/courses/reprenez-le-controle-a-l-aide-de-linux/instal
 # cp permet de copier un dossier/fichier
 # mv permet de bouger un dossier/fichier. On l'utilise aussi pour renommer.
 # rm permet de supprimer un dossier/fichier
+# pwd permet d'imprimer le dossier courant
 # mkdir permet de créer un dossier
 # wget permet de télécharger un contenu depuis le web
 # cat permet de lire le contenu texte d'un fichier
@@ -39,9 +41,10 @@ https://openclassrooms.com/courses/reprenez-le-controle-a-l-aide-de-linux/instal
 # Pour effectuer toutes ces commandes, il faut en avoir le droit. Les droits des utilisateurs peuvent être limités à certains dossiers, et limités dans leur étendue (aucun droit, ou lire, et/ou écrire, et/ou executer)
 # L'utilisateur root a tous les droits sur tous les dossiers (et peut donc modifier les droits des autres utilisateurs). Il est déconseillé d'utiliser le compte root autre que dans les cas où vous êtes obligé d'utiliser root.
 # Il est possible de faire en sorte qu'un autre utilisateur ait tout le temps les mêmes droits que root, mais c'est déconseillé aussi (surtout dans la mesure où vous lisez ce tuto, et j'en déduis donc que vous ne savez pas bien ce que vous faites).
-# Il vaut mieux donner des droits de "sudoer" aux utilisateurs à qui on veut donner plus de pouvoir. Un sudoer peut faire "sudo" devant ses commandes. sudo XYZ permet de forcer la commande XYZ, autrement dit, obtenir les permissions de root le temps d'une commande.
+# Pour donner beaucoup de pouvoir à un utilisateur, il vaut mieux lui donner des droits de "sudoer". Un sudoer peut faire "sudo" devant ses commandes. sudo XYZ permet de forcer la commande XYZ, autrement dit, obtenir les permissions de root le temps d'une commande.
 # Pour donner des droits de sudoer, il faut modifier le fichier /etc/sudoer avec la commande visudo. Je vous laisse aller sur google pour voir les détails le jour où vous ferez ça.
-#
+# En attendant, idéalement, il vaut mieux avoir une gestion intelligente des permissions des utilisateurs et des groupes sur les dossiers. Pour cela, je vous invite à regarder comment fonctionnent les commandes chmod et chown.
+# 
 # En outre, il existe de (nombreux) programmes (hadoop et R en sont, par exemple). Ceux à connaître sont :
 # apt-get est programme pour manager les packages, yum aussi
 # tar est un programme pour zipper/dézipper
@@ -54,7 +57,7 @@ https://openclassrooms.com/courses/reprenez-le-controle-a-l-aide-de-linux/instal
 # Vous trouverez mon .bashrc sur https://github.com/FrancoisMB/my-bashrc/blob/master/.bashrc, il y a des options sympas, par exemple "cd ton-dossier" execute "cd ton-dossier" puis "ls ton-dossier" ; "oops" execute "sudo + la précédente commande" ; il y a un smiley vert/rouge dans le prompt si la commande précédente a marché/échoué, etcaetera.
 #
 
-## 02 / machins préalables
+## 01 bis / machins préalables
 # Normalement (si vous n'avez pas pris mon .bashrc), le prompt devrait avoir comme format fma@fma-VirtualBox:~$
 # Où fma est le nom de votre compte lors de l'installation d'ubuntu, et fma-VirtualBox le nom de l'ordinateur
 # On va d'abord s'assurer de connaître le mot de passe de root.
@@ -68,6 +71,8 @@ su
 exit
 # Le prompt revient à fma@fma-VirtualBox:~$
 
+
+####################
 ## 02 / install hadoop
 
 # Source : http://www.bogotobogo.com/Hadoop/BigData_hadoop_Install_on_ubuntu_single_node_cluster.php
@@ -80,8 +85,8 @@ sudo apt-get install default-jdk
 cd ~
 mkdir telechargements-installs
 sudo addgroup hadoop-group
-sudo adduser --ingroup hadoop hduser
-### sudo useradd -g hadoop-group fma
+sudo adduser --ingroup hadoop hadoop-user
+### sudo usermod -a -G hadoop-group fma
 su
 sudo adduser hadoop-user sudo
 ### sudo adduser fma sudo # normalement il dira que fma est déjà dans le groupe sudo
@@ -109,6 +114,7 @@ vim ~/.bashrc
 	#HADOOP VARIABLES START
 	export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 	export HADOOP_INSTALL=/usr/local/hadoop
+	export HADOOP_HOME=$HADOOP_INSTALL
 	export PATH=$PATH:$HADOOP_INSTALL/bin
 	export PATH=$PATH:$HADOOP_INSTALL/sbin
 	export HADOOP_MAPRED_HOME=$HADOOP_INSTALL
@@ -117,6 +123,7 @@ vim ~/.bashrc
 	export YARN_HOME=$HADOOP_INSTALL
 	export HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_INSTALL/lib/native
 	export HADOOP_OPTS="-Djava.library.path=$HADOOP_INSTALL/lib"
+	alias start_hadoop=$HADOOP_INSTALL/sbin/start-all.sh
 	#HADOOP VARIABLES END
 
 # faire échap pour quitter le mode insertion, puis faire :wq (c'est bien :wq, avec les deux points) et entrée, pour quitter en sauvant
@@ -209,6 +216,7 @@ hdfs namenode -format
 sudo su hadoop-user
 cd /usr/local/hadoop/sbin
 sudo ./start-all.sh
+# (alternativement, tu peux aussi faire start_hadoop, vu qu'on a défini un alias)
 
 # la console de management devrait normalement être accessible au port 50070 (l'adresse ip suivie de :50070, par exemple en local 127.0.0.1:50070)(nb : si c'est en local, il faut passer par un navigateur qui est dans la machine virtuelle)
 
@@ -218,6 +226,8 @@ hadoop fs -ls /
 # ça devrait afficher le dossier premier-dossier-test
 hadoop fs -rm -r /premier-dossier-test
 # ça devrait dire "Deleted /premier-dossier-test"
+
+
 
 ###########################################
 ## 03 / install spark (& cassandra ?)
@@ -243,10 +253,13 @@ cd /usr/local/
 
 sudo addgroup spark-group
 sudo useradd -g spark-group spark-user
+### sudo usermod -a -G spark-group fma
 sudo adduser spark-user sudo
 sudo mkdir /home/spark-user
 sudo chown spark-user:spark-group /home/spark-user
+### sudo chown :spark-group /home/spark-user
 sudo chown -R spark-user:spark-group /usr/local/spark/
+### sudo chown -R :spark-group /usr/local/spark/
 sudo cp /home/fma/.bashrc /home/spark-user/.bashrc # si vous voulez avoir les mêmes configs pour le CLI, conseillé
 sudo su spark-user
 ssh-keygen -t rsa -P ""
@@ -258,7 +271,8 @@ sudo mkdir -p /srv/spark/work
 sudo mkdir -p /srv/spark/tmp
 sudo mkdir -p /srv/spark/pids
 sudo chown -R spark-user:spark-group /srv/spark
-sudo chmod 4755 /srv/spark/tmp
+### sudo chown -R :spark-group /srv/spark
+sudo chmod 4755 /srv/spark/tmp # sets UID, sets read, write, and execute permissions for owner, and sets read and execute permissions for group and others
 cd /usr/local/spark
 bin/run-example SparkPi 10
 cd /usr/local/spark/conf/
@@ -266,7 +280,7 @@ cp -p spark-env.sh.template spark-env.sh
 vim spark-env.sh  
 
 # comme les fois d'avant, aller où il faut, appuyer sur i pour insérer, et entrer ça :
-# Il va de soit que l'ip dans la ligne SPARK_PUBLIC_DNS="127.0.0.1" doit être changée si spark n'est pas utilisé en local
+# Il va de soi que l'ip dans la ligne SPARK_PUBLIC_DNS="127.0.0.1" doit être changée si spark n'est pas utilisé en local
 
 	export SPARK_WORKER_CORES="2"
 	export SPARK_WORKER_MEMORY="1g"
@@ -307,9 +321,19 @@ vim spark-defaults.conf
 # puis, enfin, pour démarrer spark
 
 sudo su spark-user
+sudo vim /home/spark-user/.bashrc
+
+# Ajouter :
+	# Set SPARK_HOME
+	export SPARK_HOME=/usr/local/spark
+	export PATH=$PATH:$SPARK_HOME/bin
+	alias start_spark=$SPARK_HOME/sbin/start-all.sh
+# Puis :wq pour sauver et quitter
+
 cd /usr/local/spark/sbin
 ./start-master.sh
 ./start-slaves.sh
+# (alternativement, tu peux aussi faire start_spark, vu qu'on a défini un alias)
 
 # la console de management est accessible au port 8080, et celles de chaque application (session) lancée aux ports 4040, 4041, etc
 # voir ici aussi http://r-addict.com/2016/04/06/FAQ-SparkR.html
@@ -370,10 +394,6 @@ sudo R CMD javareconf
 sudo apt-get install r-cran-rjava
 sudo apt-get install zip
 
-# autres trucs à faire tourner PAS COMPLET
-sudo su spark
-/usr/local/spark/bin/spark-shell --packages com.databricks:spark-csv_2.11:1.4.0  #aller voir la dernière version sur https://spark-packages.org/package/databricks/spark-csv
-
 ###########################################
 ## 06 / install SparkR
 
@@ -391,15 +411,23 @@ mkdir /tmp/spark-events
                                   ,spark.executor.cores="1"
                                   ,spark.driver.maxResultSize="10g"
                                   ,spark.akka.frameSize = "1000" ###
-                  ),
-                  appName = "SparkR",sparkPackages="com.databricks:spark-csv_2.10:1.4.0")
+                  )
+		#,appName = "SparkR", sparkPackages="com.databricks:spark-csv_2.10:1.4.0"
+		)
 	sqlContext <- sparkRSQL.init(sc)
+
+
+# pour installer le package databricks spark-csv, il faut faire tourner ça
+# mais allez voir la dernière version sur https://spark-packages.org/package/databricks/spark-csv
+sudo su spark
+/usr/local/spark/bin/spark-shell --packages com.databricks:spark-csv_2.11:1.4.0 
 
 # une fois hive installé (et peut être RHive, pas sûr), il sera également possible de faire ça dans R (après avoir initialisé SparkR avec sparkR.init)
 	sqlContext <- SparkRHive.init(sc)
 
+
 ###########################################
-## 07 / Rhadoop &co PAS COMPLET
+## 07 / Rhadoop &co PAS COMPLET et surtout PAS NECESSAIRE POUR NOS BESOINS
 # aller ici pour trouver les bons liens à mettre : https://github.com/RevolutionAnalytics/RHadoop/wiki/Downloads
 
 sudo su
@@ -559,6 +587,12 @@ hive
 # Avec la commande hive, du texte devrait apparaître, puis le prompt : hive>
 
 
+
+
+
+
+
+
 ############# QUAND JE GALERAIS AVEC HIVE, CA N'EST A PRIORI PAS A FAIRE, MAIS SI JAMAIS TU GALERES AUSSI, PEUT ETRE QUE TU TROUVERAS DES CHOSES UTILES LA DESSOUS
 
 # attention, cette fois ci, ça va être plus complexe. Tout d'abord, il faut ajouter ce contenu :
@@ -627,6 +661,12 @@ sudo cp sl4j-api-1.7.10.jar $HADOOP_HOME/bin
 # http://doctuts.readthedocs.io/en/latest/hive.html
 
 ############# FIN GALERES HIVE
+
+
+
+
+
+
 
 
 ## 09/ RHive
